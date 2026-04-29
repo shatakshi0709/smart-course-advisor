@@ -1,114 +1,401 @@
 import React, { useState } from "react";
+import "./style.css";
+
+const TOTAL_STEPS = 7;
+
+const domainOptions = [
+  { id: "web-development", icon: "💻", title: "Web Development" },
+  { id: "ai-ml", icon: "🤖", title: "AI / ML" },
+  { id: "data-science", icon: "📊", title: "Data Science" },
+  { id: "design", icon: "🎨", title: "Design" },
+];
+
+const levelOptions = [
+  {
+    id: "beginner",
+    icon: "🌱",
+    title: "Beginner",
+    description: "Just getting started",
+    tone: "tone-green",
+  },
+  {
+    id: "intermediate",
+    icon: "⚡",
+    title: "Intermediate",
+    description: "Know the basics",
+    tone: "tone-orange",
+  },
+  {
+    id: "advanced",
+    icon: "🚀",
+    title: "Advanced",
+    description: "Want to level up",
+    tone: "tone-red",
+  },
+];
+
+const goalOptions = [
+  {
+    id: "get-job",
+    icon: "💼",
+    title: "Get a Job",
+    description: "Build skills for your dream role",
+    bg: "goal-blue",
+  },
+  {
+    id: "learn-skills",
+    icon: "🧠",
+    title: "Learn New Skills",
+    description: "Upskill and grow",
+    bg: "goal-purple",
+  },
+  {
+    id: "crack-exams",
+    icon: "📚",
+    title: "Crack Exams",
+    description: "Ace your learning goals",
+    bg: "goal-yellow",
+  },
+];
+
+const budgetOptions = ["Under ₹3000", "Under ₹7000", "Under ₹10000+"];
+
+const leftPanelContent = {
+  1: { emoji: "👋", title: "Welcome aboard", subtitle: "Your guided learning journey starts now." },
+  2: { emoji: "📝", title: "Tell us about you", subtitle: "We only need a few basic details." },
+  3: { emoji: "🧭", title: "Pick your domain", subtitle: "Choose what excites you the most." },
+  4: { emoji: "🎯", title: "Set your level", subtitle: "We personalize based on your experience." },
+  5: { emoji: "🚩", title: "Define your goal", subtitle: "Your purpose shapes the perfect path." },
+  6: { emoji: "⏱️", title: "Final details", subtitle: "Tune timeline and budget for a fit." },
+  7: { emoji: "🎉", title: "Your path is ready", subtitle: "Here is your personalized recommendation." },
+};
 
 const CourseForm = () => {
+  const [step, setStep] = useState(1);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState({
-    interest: "",
+    name: "",
+    email: "",
+    domain: "",
     level: "",
-    time: "",
     goal: "",
+    duration: 8,
+    budget: "Under ₹7000",
   });
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const animateStep = (nextStep) => {
+    setIsAnimating(true);
+    window.setTimeout(() => {
+      setStep(nextStep);
+      setIsAnimating(false);
+    }, 220);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const updateField = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-    try {
-      const response = await fetch("YOUR_N8N_WEBHOOK_URL", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+  const increaseDuration = () => {
+    setFormData((prev) => ({ ...prev, duration: Math.min(prev.duration + 1, 52) }));
+  };
 
-      const data = await response.json();
-      setResult(data);
-    } catch (error) {
-      console.error("Error:", error);
+  const decreaseDuration = () => {
+    setFormData((prev) => ({ ...prev, duration: Math.max(prev.duration - 1, 1) }));
+  };
+
+  const canContinueFromStep = () => {
+    if (step === 2) return formData.name.trim() && formData.email.trim();
+    if (step === 3) return formData.domain;
+    if (step === 4) return formData.level;
+    if (step === 5) return formData.goal;
+    if (step === 6) return formData.budget;
+    return true;
+  };
+
+  const next = () => {
+    if (step < TOTAL_STEPS && canContinueFromStep()) {
+      animateStep(step + 1);
     }
   };
 
+  const handleFinalSubmit = async () => {
+    setLoading(true);
+    setError("");
+
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      domain: domainOptions.find((item) => item.id === formData.domain)?.title || formData.domain,
+      level: levelOptions.find((item) => item.id === formData.level)?.title || formData.level,
+      goal: goalOptions.find((item) => item.id === formData.goal)?.title || formData.goal,
+      duration: formData.duration,
+      budget: formData.budget,
+    };
+
+    const webhookUrls = [
+      "http://localhost:5678/webhook/lead-form",
+      "http://localhost:5678/webhook-test/lead-form",
+    ];
+
+    try {
+      let lastError = null;
+
+      for (const url of webhookUrls) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data?.message || "Something went wrong");
+          }
+
+          setResult(data);
+          animateStep(7);
+          return;
+        } catch (requestError) {
+          lastError = requestError;
+        }
+      }
+
+      throw lastError || new Error("Something went wrong");
+    } catch (submitError) {
+      const isNetworkError = submitError instanceof TypeError;
+      setError(
+        isNetworkError
+          ? "Unable to reach n8n webhook. Please ensure n8n is running and webhook is active."
+          : submitError?.message || "Something went wrong"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const back = () => {
+    if (step > 1) {
+      animateStep(step - 1);
+    }
+  };
+
+  const leftContent = leftPanelContent[step];
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Find Your Perfect Course 🎯</h2>
+    <div className="app-shell">
+      <div className="onboarding-layout">
+        <section className="visual-panel">
+          <div className="gradient-orb orb-one" />
+          <div className="gradient-orb orb-two" />
+          <div className="floating-illustration">
+            <div className="emoji-bubble">{leftContent.emoji}</div>
+            <h3>{leftContent.title}</h3>
+            <p>{leftContent.subtitle}</p>
+          </div>
+        </section>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Interest:</label>
-      <select name="domain" onChange={handleChange} required>
-  <option value="">Select Domain</option>
-  <option value="ai">AI / ML</option>
-  <option value="web">Web Development</option>
-  <option value="data">Data Science</option>
-  <option value="devops">DevOps</option>
-  <option value="cyber">Cybersecurity</option>
-  <option value="mobile">Mobile Development</option>
-</select>
-        </div>
+        <section className={`content-card ${isAnimating ? "step-entering" : ""}`}>
+          <div className="progress-wrap">
+            <div className="step-dots">
+              {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+                <span key={`dot-${i + 1}`} className={step >= i + 1 ? "dot active" : "dot"} />
+              ))}
+            </div>
+            <div className="progress-bar">
+              <span style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+            </div>
+            <p className="step-label">Step {step} of {TOTAL_STEPS}</p>
+          </div>
 
-        <div>
-          <label>Skill Level:</label>
-          <select name="level" onChange={handleChange} required>
-            <option value="">Select</option>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-          </select>
-        </div>
+          {step === 1 && (
+            <div className="step-body center-body">
+              <h1>Hey there! 👋 Let&apos;s find your perfect course</h1>
+              <p>Answer a few quick questions and we&apos;ll build your ideal learning path.</p>
+              <button className="gradient-btn" onClick={next}>
+                Let&apos;s Start 🚀
+              </button>
+            </div>
+          )}
 
-<div>
-  <label>Course Duration (in weeks):</label>
-  <select name="duration" onChange={handleChange} required>
-    <option value="">Select Duration</option>
-    <option value="4">Up to 4 weeks</option>
-    <option value="8">Up to 8 weeks</option>
-    <option value="12">Up to 12 weeks</option>
-  </select>
-</div>
+          {step === 2 && (
+            <div className="step-body">
+              <h2>First, tell us about you 🙂</h2>
+              <p className="subtitle">We just need the basics.</p>
+              <label className="input-wrap">
+                <span className="input-icon">👤</span>
+                <input
+                  value={formData.name}
+                  type="text"
+                  placeholder="Your Name"
+                  onChange={(e) => updateField("name", e.target.value)}
+                />
+              </label>
+              <label className="input-wrap">
+                <span className="input-icon">✉️</span>
+                <input
+                  value={formData.email}
+                  type="email"
+                  placeholder="Your Email"
+                  onChange={(e) => updateField("email", e.target.value)}
+                />
+              </label>
+              <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
+                Next →
+              </button>
+              <button className="text-btn" onClick={back}>← Back</button>
+            </div>
+          )}
 
-<div>
-  <label>Budget:</label>
-        <select name="budget" onChange={handleChange} required>
-          <option value="">Select Budget</option>
-          <option value="0">Free</option>
-          <option value="3000">Under ₹3000</option>
-          <option value="7000">Under ₹7000</option>
-          <option value="10000">Under ₹10000</option>
-          <option value="15000">Any</option>
-        </select>
-</div>
+          {step === 3 && (
+            <div className="step-body">
+              <h2>What do you want to learn? 📚</h2>
+              <p className="subtitle">Choose the domain that excites you most.</p>
+              <div className="grid-cards">
+                {domainOptions.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`choice-card ${formData.domain === item.id ? "selected" : ""}`}
+                    onClick={() => updateField("domain", item.id)}
+                  >
+                    <span className="choice-icon">{item.icon}</span>
+                    <span>{item.title}</span>
+                    {formData.domain === item.id && <span className="check">✓</span>}
+                  </button>
+                ))}
+              </div>
+              <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
+                Next →
+              </button>
+              <button className="text-btn" onClick={back}>← Back</button>
+            </div>
+          )}
 
-        <div>
-          <label>Goal:</label>
-          <select name="goal" onChange={handleChange} required>
-            <option value="">Select</option>
-            <option value="job">Get a Job</option>
-            <option value="freelancing">Freelancing</option>
-            <option value="learning">Learning</option>
-          </select>
-        </div>
+          {step === 4 && (
+            <div className="step-body">
+              <h2>What&apos;s your current level? 🎯</h2>
+              <p className="subtitle">This helps us personalize your path better.</p>
+              <div className="stack-cards">
+                {levelOptions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`level-card ${item.tone} ${formData.level === item.id ? "selected" : ""}`}
+                    onClick={() => updateField("level", item.id)}
+                  >
+                    <div>
+                      <span className="choice-icon">{item.icon}</span>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                    </div>
+                    {formData.level === item.id && <span className="check">✓</span>}
+                  </button>
+                ))}
+              </div>
+              <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
+                Next →
+              </button>
+              <button className="text-btn" onClick={back}>← Back</button>
+            </div>
+          )}
 
-        <button type="submit" style={{ marginTop: "10px" }}>
-          Get Course 🚀
-        </button>
-      </form>
+          {step === 5 && (
+            <div className="step-body">
+              <h2>What&apos;s your goal? 🚀</h2>
+              <p className="subtitle">Your goal shapes your perfect path.</p>
+              <div className="stack-cards">
+                {goalOptions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`goal-card ${item.bg} ${formData.goal === item.id ? "selected" : ""}`}
+                    onClick={() => updateField("goal", item.id)}
+                  >
+                    <div>
+                      <span className="choice-icon">{item.icon}</span>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                    </div>
+                    {formData.goal === item.id && <span className="check">✓</span>}
+                  </button>
+                ))}
+              </div>
+              <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
+                Next →
+              </button>
+              <button className="text-btn" onClick={back}>← Back</button>
+            </div>
+          )}
 
+          {step === 6 && (
+            <div className="step-body">
+              <h2>Almost there! 🌟</h2>
+              <p className="subtitle">Let&apos;s add a few final details.</p>
+              <div className="duration-wrap">
+                <span>Duration (weeks)</span>
+                <div className="stepper">
+                  <button type="button" onClick={decreaseDuration}>−</button>
+                  <strong>{formData.duration}</strong>
+                  <button type="button" onClick={increaseDuration}>+</button>
+                </div>
+              </div>
 
-      {result && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Recommended Course 📚</h3>
-          <p><b>Name:</b> {result.course_name}</p>
-          <p><b>Reason:</b> {result.reason}</p>
-          <p><b>Duration:</b> {result.duration}</p>
-        </div>
-      )}
+              <div>
+                <p className="budget-title">💰 What&apos;s your budget?</p>
+                <div className="budget-pills">
+                  {budgetOptions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={formData.budget === item ? "pill active" : "pill"}
+                      onClick={() => updateField("budget", item)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button className="gradient-btn" onClick={handleFinalSubmit} disabled={loading}>
+                {loading ? "AI is finding best course..." : "🚀 Show My Path"}
+              </button>
+              {error ? <p className="subtitle">{error}</p> : null}
+              <button className="text-btn" onClick={back} disabled={loading}>← Back</button>
+            </div>
+          )}
+
+          {step === 7 && result && (
+            <div className="step-body center-body result-step">
+              <div className="confetti-wrap">
+                {Array.from({ length: 18 }, (_, i) => (
+                  <span key={`confetti-${i}`} className="confetti-piece" />
+                ))}
+              </div>
+              <h2>🎉 Your Perfect Path is Ready!</h2>
+              <div className="result-card">
+                <p><span>📘</span> Course <strong>{result.course_name || "Recommended Course"}</strong></p>
+                <p><span>🧠</span> Why <strong>{result.reason || "Based on your profile and goal."}</strong></p>
+                <p><span>⏱️</span> Duration <strong>{result.duration || `${formData.duration} weeks`}</strong></p>
+              </div>
+              <button className="gradient-btn" onClick={() => setStep(1)}>
+                Start Over
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
