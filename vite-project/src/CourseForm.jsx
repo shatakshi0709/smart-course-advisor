@@ -165,7 +165,7 @@ const CourseForm = () => {
     };
   
     const webhookUrls = [
-        "http://localhost:5678/webhook-test/lead-form",
+        "http://localhost:5678/webhook/lead-form",
     ];
 
     try {
