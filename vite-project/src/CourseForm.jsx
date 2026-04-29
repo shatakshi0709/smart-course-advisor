@@ -191,18 +191,13 @@ const CourseForm = () => {
 
   return (
     <div className="app-shell">
-      <div className="onboarding-layout">
-        <section className="visual-panel">
-          <div className="gradient-orb orb-one" />
-          <div className="gradient-orb orb-two" />
-          <div className="floating-illustration">
-            <div className="emoji-bubble">{leftContent.emoji}</div>
-            <h3>{leftContent.title}</h3>
-            <p>{leftContent.subtitle}</p>
-          </div>
-        </section>
+      <section className={`content-card ${isAnimating ? "step-entering" : ""}`}>
+        <div className="floating-illustration hero-in-card">
+          <div className="emoji-bubble">{leftContent.emoji}</div>
+          <h3>{leftContent.title}</h3>
+          <p>{leftContent.subtitle}</p>
+        </div>
 
-        <section className={`content-card ${isAnimating ? "step-entering" : ""}`}>
           <div className="progress-wrap">
             <div className="step-dots">
               {Array.from({ length: TOTAL_STEPS }, (_, i) => (
@@ -394,8 +389,7 @@ const CourseForm = () => {
               </button>
             </div>
           )}
-        </section>
-      </div>
+      </section>
     </div>
   );
 };
