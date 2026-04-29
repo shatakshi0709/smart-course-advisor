@@ -1,33 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "./style.css";
 
-const TOTAL_STEPS = 7;
-
-const domainOptions = [
-  { id: "web-development", icon: "💻", title: "Web Development" },
-  { id: "ai-ml", icon: "🤖", title: "AI / ML" },
-  { id: "data-science", icon: "📊", title: "Data Science" },
-  { id: "design", icon: "🎨", title: "Design" },
-];
+const TOTAL_STEPS = 6;
 
 const levelOptions = [
   {
     id: "beginner",
-    icon: "🌱",
     title: "Beginner",
     description: "Just getting started",
     tone: "tone-green",
   },
   {
     id: "intermediate",
-    icon: "⚡",
     title: "Intermediate",
     description: "Know the basics",
     tone: "tone-orange",
   },
   {
     id: "advanced",
-    icon: "🚀",
     title: "Advanced",
     description: "Want to level up",
     tone: "tone-red",
@@ -37,21 +28,18 @@ const levelOptions = [
 const goalOptions = [
   {
     id: "get-job",
-    icon: "💼",
     title: "Get a Job",
     description: "Build skills for your dream role",
     bg: "goal-blue",
   },
   {
     id: "learn-skills",
-    icon: "🧠",
     title: "Learn New Skills",
     description: "Upskill and grow",
     bg: "goal-purple",
   },
   {
     id: "crack-exams",
-    icon: "📚",
     title: "Crack Exams",
     description: "Ace your learning goals",
     bg: "goal-yellow",
@@ -67,24 +55,46 @@ const leftPanelContent = {
   4: { emoji: "🎯", title: "Set your level", subtitle: "We personalize based on your experience." },
   5: { emoji: "🚩", title: "Define your goal", subtitle: "Your purpose shapes the perfect path." },
   6: { emoji: "⏱️", title: "Final details", subtitle: "Tune timeline and budget for a fit." },
-  7: { emoji: "🎉", title: "Your path is ready", subtitle: "Here is your personalized recommendation." },
 };
 
 const CourseForm = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     domain: "",
+    course: "",
     level: "",
     goal: "",
     duration: 8,
     budget: "Under ₹7000",
   });
+  
+  const [domains, setDomains] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    const getDomains = async () => {
+      // Mock fetching dynamic categories from backend (Notion)
+      const data = [
+        { id: "ai-genai", title: "AI / GenAI" },
+        { id: "cybersecurity", title: "Cybersecurity" },
+        { id: "data-science", title: "Data Science" },
+        { id: "devops", title: "DevOps" },
+        { id: "machine-learning", title: "Machine Learning" },
+        { id: "mobile-dev", title: "Mobile Development" },
+        { id: "programming", title: "Programming" },
+        { id: "web-development", title: "Web Development" }
+      ];
+      setDomains(data);
+    };
+    getDomains();
+  }, []);
 
   const animateStep = (nextStep) => {
     setIsAnimating(true);
@@ -98,6 +108,24 @@ const CourseForm = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleDomainSelect = (domainId) => {
+    updateField("domain", domainId);
+    updateField("course", ""); 
+    setLoadingCourses(true);
+    
+    // Mock fetching courses for the selected domain
+    setTimeout(() => {
+      const selectedDomain = domains.find(d => d.id === domainId)?.title || domainId;
+      const mockCourses = [
+        { id: `c1-${domainId}`, title: `Introduction to ${selectedDomain}` },
+        { id: `c2-${domainId}`, title: `Advanced ${selectedDomain} Concepts` },
+        { id: `c3-${domainId}`, title: `${selectedDomain} Masterclass for Professionals` }
+      ];
+      setCourses(mockCourses);
+      setLoadingCourses(false);
+    }, 600);
+  };
+
   const increaseDuration = () => {
     setFormData((prev) => ({ ...prev, duration: Math.min(prev.duration + 1, 52) }));
   };
@@ -108,7 +136,7 @@ const CourseForm = () => {
 
   const canContinueFromStep = () => {
     if (step === 2) return formData.name.trim() && formData.email.trim();
-    if (step === 3) return formData.domain;
+    if (step === 3) return formData.domain && formData.course; // Now requires selecting a course too
     if (step === 4) return formData.level;
     if (step === 5) return formData.goal;
     if (step === 6) return formData.budget;
@@ -124,20 +152,20 @@ const CourseForm = () => {
   const handleFinalSubmit = async () => {
     setLoading(true);
     setError("");
-
+  
     const payload = {
       name: formData.name,
       email: formData.email,
-      domain: domainOptions.find((item) => item.id === formData.domain)?.title || formData.domain,
+      domain: domains.find((item) => item.id === formData.domain)?.title || formData.domain,
+      course: courses.find((item) => item.id === formData.course)?.title || formData.course,
       level: levelOptions.find((item) => item.id === formData.level)?.title || formData.level,
       goal: goalOptions.find((item) => item.id === formData.goal)?.title || formData.goal,
       duration: formData.duration,
       budget: formData.budget,
     };
-
+  
     const webhookUrls = [
-      "http://localhost:5678/webhook/lead-form",
-      "http://localhost:5678/webhook-test/lead-form",
+        "http://localhost:5678/webhook-test/lead-form",
     ];
 
     try {
@@ -153,21 +181,21 @@ const CourseForm = () => {
             },
             body: JSON.stringify(payload),
           });
-
+  
           const data = await response.json();
-
+  
           if (!response.ok) {
             throw new Error(data?.message || "Something went wrong");
           }
-
-          setResult(data);
-          animateStep(7);
+  
+          localStorage.setItem("courseResult", JSON.stringify(data));
+          navigate('/result');
           return;
         } catch (requestError) {
           lastError = requestError;
         }
       }
-
+  
       throw lastError || new Error("Something went wrong");
     } catch (submitError) {
       const isNetworkError = submitError instanceof TypeError;
@@ -212,20 +240,20 @@ const CourseForm = () => {
 
           {step === 1 && (
             <div className="step-body center-body">
-              <h1>Hey there! 👋 Let&apos;s find your perfect course</h1>
+              <h1>Hey there! Let&apos;s find your perfect course</h1>
               <p>Answer a few quick questions and we&apos;ll build your ideal learning path.</p>
               <button className="gradient-btn" onClick={next}>
-                Let&apos;s Start 🚀
+                Let&apos;s Start
               </button>
             </div>
           )}
 
           {step === 2 && (
             <div className="step-body">
-              <h2>First, tell us about you 🙂</h2>
+              <h2>First, tell us about you</h2>
               <p className="subtitle">We just need the basics.</p>
               <label className="input-wrap">
-                <span className="input-icon">👤</span>
+                <span className="input-icon"></span>
                 <input
                   value={formData.name}
                   type="text"
@@ -234,7 +262,7 @@ const CourseForm = () => {
                 />
               </label>
               <label className="input-wrap">
-                <span className="input-icon">✉️</span>
+                <span className="input-icon"></span>
                 <input
                   value={formData.email}
                   type="email"
@@ -250,33 +278,61 @@ const CourseForm = () => {
           )}
 
           {step === 3 && (
-            <div className="step-body">
-              <h2>What do you want to learn? 📚</h2>
-              <p className="subtitle">Choose the domain that excites you most.</p>
+            <div className="step-body" style={{ alignItems: 'stretch' }}>
+              <h2 style={{ textAlign: 'center' }}>What do you want to learn?</h2>
+              <p className="subtitle" style={{ textAlign: 'center', marginBottom: '16px' }}>Choose a domain to see available courses.</p>
+              
               <div className="grid-cards">
-                {domainOptions.map((item) => (
+                {domains.map((item) => (
                   <button
                     type="button"
                     key={item.id}
                     className={`choice-card ${formData.domain === item.id ? "selected" : ""}`}
-                    onClick={() => updateField("domain", item.id)}
+                    onClick={() => handleDomainSelect(item.id)}
                   >
-                    <span className="choice-icon">{item.icon}</span>
                     <span>{item.title}</span>
                     {formData.domain === item.id && <span className="check">✓</span>}
                   </button>
                 ))}
               </div>
-              <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
-                Next →
-              </button>
-              <button className="text-btn" onClick={back}>← Back</button>
+
+              {formData.domain && loadingCourses && <p style={{ textAlign: 'center', marginTop: '16px', color: '#7c6bff' }}>Loading courses...</p>}
+
+              {formData.domain && !loadingCourses && courses.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h3 style={{ textAlign: 'center', marginBottom: '16px', color: '#272a4f' }}>Select a Course</h3>
+                  <div className="stack-cards">
+                    {courses.map(course => (
+                      <button
+                        type="button"
+                        key={course.id}
+                        className={`goal-card goal-blue ${formData.course === course.id ? "selected" : ""}`}
+                        onClick={() => updateField("course", course.id)}
+                      >
+                        <div>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '0.95rem' }}>{course.title}</strong>
+                          </div>
+                        </div>
+                        {formData.course === course.id && <span className="check">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
+                  Next →
+                </button>
+                <button className="text-btn" onClick={back}>← Back</button>
+              </div>
             </div>
           )}
 
           {step === 4 && (
             <div className="step-body">
-              <h2>What&apos;s your current level? 🎯</h2>
+              <h2>What&apos;s your current level?</h2>
               <p className="subtitle">This helps us personalize your path better.</p>
               <div className="stack-cards">
                 {levelOptions.map((item) => (
@@ -287,7 +343,6 @@ const CourseForm = () => {
                     onClick={() => updateField("level", item.id)}
                   >
                     <div>
-                      <span className="choice-icon">{item.icon}</span>
                       <div>
                         <strong>{item.title}</strong>
                         <p>{item.description}</p>
@@ -306,7 +361,7 @@ const CourseForm = () => {
 
           {step === 5 && (
             <div className="step-body">
-              <h2>What&apos;s your goal? 🚀</h2>
+              <h2>What&apos;s your goal?</h2>
               <p className="subtitle">Your goal shapes your perfect path.</p>
               <div className="stack-cards">
                 {goalOptions.map((item) => (
@@ -317,7 +372,6 @@ const CourseForm = () => {
                     onClick={() => updateField("goal", item.id)}
                   >
                     <div>
-                      <span className="choice-icon">{item.icon}</span>
                       <div>
                         <strong>{item.title}</strong>
                         <p>{item.description}</p>
@@ -336,7 +390,7 @@ const CourseForm = () => {
 
           {step === 6 && (
             <div className="step-body">
-              <h2>Almost there! 🌟</h2>
+              <h2>Almost there!</h2>
               <p className="subtitle">Let&apos;s add a few final details.</p>
               <div className="duration-wrap">
                 <span>Duration (weeks)</span>
@@ -348,7 +402,7 @@ const CourseForm = () => {
               </div>
 
               <div>
-                <p className="budget-title">💰 What&apos;s your budget?</p>
+                <p className="budget-title">What&apos;s your budget?</p>
                 <div className="budget-pills">
                   {budgetOptions.map((item) => (
                     <button
@@ -364,31 +418,13 @@ const CourseForm = () => {
               </div>
 
               <button className="gradient-btn" onClick={handleFinalSubmit} disabled={loading}>
-                {loading ? "AI is finding best course..." : "🚀 Show My Path"}
+                {loading ? "AI is preparing your path..." : "Show My Path"}
               </button>
-              {error ? <p className="subtitle">{error}</p> : null}
+              {error ? <p className="subtitle" style={{ color: 'red' }}>{error}</p> : null}
               <button className="text-btn" onClick={back} disabled={loading}>← Back</button>
             </div>
           )}
 
-          {step === 7 && result && (
-            <div className="step-body center-body result-step">
-              <div className="confetti-wrap">
-                {Array.from({ length: 18 }, (_, i) => (
-                  <span key={`confetti-${i}`} className="confetti-piece" />
-                ))}
-              </div>
-              <h2>🎉 Your Perfect Path is Ready!</h2>
-              <div className="result-card">
-                <p><span>📘</span> Course <strong>{result.course_name || "Recommended Course"}</strong></p>
-                <p><span>🧠</span> Why <strong>{result.reason || "Based on your profile and goal."}</strong></p>
-                <p><span>⏱️</span> Duration <strong>{result.duration || `${formData.duration} weeks`}</strong></p>
-              </div>
-              <button className="gradient-btn" onClick={() => setStep(1)}>
-                Start Over
-              </button>
-            </div>
-          )}
       </section>
     </div>
   );
