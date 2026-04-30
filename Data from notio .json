@@ -1,0 +1,131 @@
+{
+  "name": "notion",
+  "nodes": [
+    {
+      "parameters": {
+        "functionCode": "const grouped = {};\n\nitems.forEach(item => {\n  const course = item.json;\n\n  const name = course.property_course_name || course.name || \"\";\n\n  let subject = \"Other\";\n\n  if (name.includes(\"—\")) {\n    subject = name.split(\"—\")[1].trim();\n  }\n\n  if (!grouped[subject]) {\n    grouped[subject] = [];\n  }\n\n  grouped[subject].push({\n    name,\n    price: course.property_price_inr || 0,\n    duration: course.property_duration_weeks || 0,\n    level: course.property_level || \"\",\n    description: course.property_description || \"\"\n  });\n});\n\nconst result = Object.keys(grouped).map(subject => ({\n  subject,\n  courses: grouped[subject]\n}));\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        464,
+        0
+      ],
+      "id": "fd9a42fe-e21a-4b8b-bb0d-67cd4fdda7c6",
+      "name": "Format Courses"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $items().map(item => item.json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        864,
+        0
+      ],
+      "id": "35c2a8db-c500-4c4a-8aa3-c4b5cd9fcb5d",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "course"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "adc3f6c0-a807-4afb-9d13-3c85ce1851a7",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "214f7aad-7704-4c00-b7ef-9f90d6f47788",
+          "mode": "list",
+          "cachedResultName": "Courses",
+          "cachedResultUrl": "https://www.notion.so/214f7aad77044c00b7ef9f90d6f47788"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3a229029-967e-445d-a3ec-5fa05d8b4c1c",
+      "name": "Get many database pages",
+      "credentials": {
+        "notionApi": {
+          "id": "8WOZZPWYcxyxqbIL",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Format Courses": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Format Courses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "9fecbd5c-6f62-4db9-bd1a-e500caa34657",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ea456107a386602503bce1eb3848f84e91d4434749fa4560a95691cc7dc07df1"
+  },
+  "id": "dmH0wNg5RtuoowZp",
+  "tags": []
+}
