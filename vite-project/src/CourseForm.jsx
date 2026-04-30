@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser, logout } from "./auth";
 import "./style.css";
 
 const TOTAL_STEPS = 6;
@@ -59,11 +60,11 @@ const leftPanelContent = {
 
 const CourseForm = () => {
   const navigate = useNavigate();
+  const user = getCurrentUser();
   const [step, setStep] = useState(1);
   const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
     domain: "",
     course: "",
     level: "",
@@ -95,6 +96,11 @@ const CourseForm = () => {
     };
     getDomains();
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const animateStep = (nextStep) => {
     setIsAnimating(true);
@@ -135,7 +141,7 @@ const CourseForm = () => {
   };
 
   const canContinueFromStep = () => {
-    if (step === 2) return formData.name.trim() && formData.email.trim();
+    if (step === 2) return formData.name.trim();
     if (step === 3) return formData.domain && formData.course; // Now requires selecting a course too
     if (step === 4) return formData.level;
     if (step === 5) return formData.goal;
@@ -155,7 +161,7 @@ const CourseForm = () => {
   
     const payload = {
       name: formData.name,
-      email: formData.email,
+      email: user?.email,
       domain: domains.find((item) => item.id === formData.domain)?.title || formData.domain,
       course: courses.find((item) => item.id === formData.course)?.title || formData.course,
       level: levelOptions.find((item) => item.id === formData.level)?.title || formData.level,
@@ -165,7 +171,7 @@ const CourseForm = () => {
     };
   
     const webhookUrls = [
-        "http://localhost:5678/webhook/lead-form",
+        "http://localhost:5678/webhook-test/lead-form",
     ];
 
     try {
@@ -219,6 +225,11 @@ const CourseForm = () => {
 
   return (
     <div className="app-shell">
+      <div className="user-header">
+        <div className="user-email">{user?.email}</div>
+        <button onClick={handleLogout} className="logout-btn">Logout</button>
+      </div>
+
       <section className={`content-card ${isAnimating ? "step-entering" : ""}`}>
         <div className="floating-illustration hero-in-card">
           <div className="emoji-bubble">{leftContent.emoji}</div>
@@ -251,7 +262,7 @@ const CourseForm = () => {
           {step === 2 && (
             <div className="step-body">
               <h2>First, tell us about you</h2>
-              <p className="subtitle">We just need the basics.</p>
+              <p className="subtitle">We just need your name to personalize your results.</p>
               <label className="input-wrap">
                 <span className="input-icon"></span>
                 <input
@@ -259,15 +270,6 @@ const CourseForm = () => {
                   type="text"
                   placeholder="Your Name"
                   onChange={(e) => updateField("name", e.target.value)}
-                />
-              </label>
-              <label className="input-wrap">
-                <span className="input-icon"></span>
-                <input
-                  value={formData.email}
-                  type="email"
-                  placeholder="Your Email"
-                  onChange={(e) => updateField("email", e.target.value)}
                 />
               </label>
               <button className="gradient-btn" disabled={!canContinueFromStep()} onClick={next}>
