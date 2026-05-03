@@ -30,6 +30,7 @@ The live demo uses a mocked response due to webhook limitations.
 The complete workflow (including backend automation) can be tested locally using the provided workflow.json.
 
 🎥 A full working demonstration is available in the demo video.
+https://www.loom.com/share/77647c507db24cd38b59ecc5d0839cfb
 
 
 ---
